@@ -1,0 +1,8 @@
+[package]
+name = "simple_flecs"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+ahash = "0.8.12"
+flecs_ecs_sys = { git = "https://github.com/Indra-db/Flecs-Rust", rev = "4f9a222" }
