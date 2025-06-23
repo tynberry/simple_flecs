@@ -1,5 +1,6 @@
 #![doc(hidden)]
 #![allow(non_upper_case_globals)]
+#![allow(dead_code)]
 //! Courtesy of Intra-db's Flecs-Rust bindings.
 //!
 //! Source: https://github.com/Indra-db/Flecs-Rust/blob/ff68122ba303107cbf32027ab800d07fcdf97468/flecs_ecs/src/core/c_types.rs#L261

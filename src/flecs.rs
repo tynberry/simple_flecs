@@ -159,6 +159,7 @@ impl IdFetcher for flecs_ecs_sys::EcsComponent {
 impl crate::component::Component for EcsComponent {
     const NEEDS_DROP: bool = false;
     const IS_TAG: bool = false;
+    const ID: Option<crate::entity::Entity> = Some(ECS_COMPONENT);
 }
 
 //identifier
@@ -171,6 +172,7 @@ impl IdFetcher for flecs_ecs_sys::EcsIdentifier {
 impl crate::component::Component for Identifier {
     const NEEDS_DROP: bool = false;
     const IS_TAG: bool = false;
+    const ID: Option<crate::entity::Entity> = Some(ECS_IDENTIFIER);
 }
 
 //poly
@@ -183,6 +185,7 @@ impl IdFetcher for flecs_ecs_sys::EcsPoly {
 impl crate::component::Component for Poly {
     const NEEDS_DROP: bool = false;
     const IS_TAG: bool = false;
+    const ID: Option<crate::entity::Entity> = Some(ECS_POLY);
 }
 
 //default child component
@@ -195,6 +198,7 @@ impl IdFetcher for flecs_ecs_sys::EcsDefaultChildComponent {
 impl crate::component::Component for DefaultChildComponent {
     const NEEDS_DROP: bool = false;
     const IS_TAG: bool = false;
+    const ID: Option<crate::entity::Entity> = Some(ECS_DEFAULT_CHILD_COMPONENT);
 }
 
 // Poly target components

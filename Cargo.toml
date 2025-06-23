@@ -5,4 +5,8 @@ edition = "2024"
 
 [dependencies]
 ahash = "0.8.12"
-flecs_ecs_sys = { git = "https://github.com/Indra-db/Flecs-Rust", rev = "4f9a222" }
+flecs_ecs_sys = { git = "https://github.com/Indra-db/Flecs-Rust", rev = "4f9a222", features = [
+  "flecs_pipeline",
+  "flecs_system",
+  "flecs_rest",
+] }
