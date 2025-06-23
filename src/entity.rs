@@ -9,7 +9,8 @@ use flecs_ecs_sys::*;
 use crate::{
     component::{
         Component,
-        id::{IdFetcher, TagIdFetcher, comp},
+        id::{IdFetcher, id},
+        traits::ComponentOrPair,
     },
     world::World,
 };
@@ -56,6 +57,12 @@ impl<'a> EntityView<'a> {
         unsafe { ecs_enable(self.world.ptr(), self.entity_id, false) };
     }
 
+    /// Is the entity enabled?
+    pub fn is_enabled(&self) -> bool {
+        //unsafe { ecs_has_id(self.world.ptr(), self.entity_id) }
+        todo!()
+    }
+
     /// Gets entity path.
     ///
     /// This allocates a new string.
@@ -74,6 +81,11 @@ impl<'a> EntityView<'a> {
     /// Is the entity alive?
     pub fn is_alive(&self) -> bool {
         unsafe { ecs_is_alive(self.world.ptr(), self.entity_id) }
+    }
+
+    /// Is the entity valid?
+    pub fn is_valid(&self) -> bool {
+        unsafe { ecs_is_valid(self.world.ptr(), self.entity_id) }
     }
 
     /// Lookups from this entity.
@@ -123,21 +135,38 @@ impl<'a> From<EntityView<'a>> for Entity {
 //------------------------------------------------------------------------------
 
 impl<'a> EntityView<'a> {
-    /// Adds a tag to the entity.
+    /// Adds a tag or a tag pair from a type to the entity.
     ///
     /// Tags are components without data.
     ///
     /// # Note
     /// Cannot add data components since they would be unitialized which is not allowed in Rust.
-    pub fn add_tag(&self, id: impl TagIdFetcher) {
+    pub fn add<T: ComponentOrPair>(&self) {
+        let id = if T::IS_PAIR {
+            let first = id::<T::First>().retrieve_id(self.world);
+            let second = id::<T::Second>().retrieve_id(self.world);
+            unsafe { ecs_make_pair(first, second) }
+        } else {
+            id::<T::First>().retrieve_id(self.world)
+        };
+        unsafe { ecs_add_id(self.world.ptr(), self.entity_id, id) }
+    }
+
+    /// Adds a tag from an id to the entity.
+    ///
+    /// Tags are components without data.
+    ///
+    /// # Note
+    /// Cannot add data components since they would be unitialized which is not allowed in Rust.
+    pub fn add_id(&self, id: impl IdFetcher) {
         let id = id.retrieve_id(self.world);
         unsafe { ecs_add_id(self.world.ptr(), self.entity_id, id) }
     }
 
-    /// Sets a component to the entity.
+    /// Sets a component to an entity.
     pub fn set_comp<T: Component>(&self, data: T) {
         //get id
-        let comp_id = comp::<T>().retrieve_id(self.world);
+        let comp_id = id::<T>().retrieve_id(self.world);
         //prevent dropping, since it copies whatever is there, don't want to accidentaly deallocate
         let my_data = ManuallyDrop::new(data);
         unsafe {
@@ -151,9 +180,53 @@ impl<'a> EntityView<'a> {
         }
     }
 
+    /// Sets a component pair to an entity, where the first is a component and the second is a
+    /// tag.
+    pub fn set_first<F: Component>(&self, first: F, second: impl IdFetcher) {
+        //get ids
+        let first_id = id::<F>().retrieve_id(self.world);
+        let second_id = second.retrieve_id(self.world);
+        let pair_id = unsafe { ecs_make_pair(first_id, second_id) };
+        //prevent dropping, since it copies whatever is there, don't want to accidentaly deallocate
+        let my_data = ManuallyDrop::new(first);
+        unsafe {
+            ecs_set_id(
+                self.world.ptr(),
+                self.entity_id,
+                pair_id,
+                core::mem::size_of::<F>(),
+                &my_data as *const _ as *const c_void,
+            );
+        }
+    }
+
+    /// Sets a component pair to an entity, where the second is a component and the first is a
+    /// tag.
+    pub fn set_second<F: Component>(&self, first: impl IdFetcher, second: F) {
+        //get ids
+        let first_id = first.retrieve_id(self.world);
+        let second_id = id::<F>().retrieve_id(self.world);
+        let pair_id = unsafe { ecs_make_pair(first_id, second_id) };
+        //prevent dropping, since it copies whatever is there, don't want to accidentaly deallocate
+        let my_data = ManuallyDrop::new(second);
+        unsafe {
+            ecs_set_id(
+                self.world.ptr(),
+                self.entity_id,
+                pair_id,
+                core::mem::size_of::<F>(),
+                &my_data as *const _ as *const c_void,
+            );
+        }
+    }
+
     /// Gets a component from the entity.
-    pub fn get<T: Component>(&self) -> Option<&T> {
-        let comp_id = comp::<T>().retrieve_id(self.world);
+    ///
+    /// # Safety
+    ///
+    /// You can invalidate the reference by performing any world mutating action.
+    pub unsafe fn get<T: Component>(&self) -> Option<&T> {
+        let comp_id = id::<T>().retrieve_id(self.world);
         unsafe {
             let ptr = ecs_get_id(self.world.ptr(), self.entity_id, comp_id) as *const T;
             ptr.as_ref()
@@ -161,8 +234,12 @@ impl<'a> EntityView<'a> {
     }
 
     /// Gets a component mutably from the entity.
-    pub fn get_mut<T: Component>(&mut self) -> Option<&mut T> {
-        let comp_id = comp::<T>().retrieve_id(self.world);
+    ///
+    /// # Safety
+    ///
+    /// You can invalidate the reference by performing any world mutating action.
+    pub unsafe fn get_mut<T: Component>(&mut self) -> Option<&mut T> {
+        let comp_id = id::<T>().retrieve_id(self.world);
         unsafe {
             let ptr = ecs_get_mut_id(self.world.ptr(), self.entity_id, comp_id) as *mut T;
             ptr.as_mut()

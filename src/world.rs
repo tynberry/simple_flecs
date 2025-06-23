@@ -108,13 +108,26 @@ impl World {
             })
         }
     }
+
+    /// Lookup an entity by its symbol.
+    pub fn lookup_symbol(&self, name: &CStr) -> Option<EntityView<'_>> {
+        let entity = unsafe { ecs_lookup_symbol(self.ptr(), name.as_ptr(), false, false) };
+        if entity == 0 {
+            None
+        } else {
+            Some(EntityView {
+                world: self,
+                entity_id: entity,
+            })
+        }
+    }
 }
 
 impl World {
     /// Creates a new named component.
     pub fn component<T: Component>(&mut self, symbol: &CStr) -> ComponentView<'_> {
         //is it already registered in flecs?
-        if let Some(entity) = self.lookup(symbol) {
+        if let Some(entity) = self.lookup_symbol(symbol) {
             let id = entity.entity_id;
             self.component_map.insert(TypeId::of::<T>(), id);
             return ComponentView {

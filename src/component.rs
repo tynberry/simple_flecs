@@ -1,4 +1,5 @@
 pub mod id;
+pub mod traits;
 
 use std::{any::Any, ffi::CStr};
 
@@ -12,13 +13,15 @@ use flecs_ecs_sys::*;
 pub trait Component: Any + Sized {
     /// Whether we need to register a Drop dtor hook.
     const NEEDS_DROP: bool = std::mem::needs_drop::<Self>();
+    /// Whether the component is a tag. I.E. holds not data.
+    ///
+    /// Is automatically set to true if the type is a ZST.
+    const IS_TAG: bool = std::mem::size_of::<Self>() == 0;
+    /// Optional constant id of component.
+    ///
+    /// Used only for flecs built-in components. You should not use it.
+    const ID: Option<Entity> = None;
 }
-
-/// Tag for the ECS, works more as a marker.
-///
-/// Tags are components which have no data on them.
-/// It is an error to use this trait on a struct which has any kind of data inside it.
-pub trait Tag: Any + Sized {}
 
 /// Builder pattern for component manipulation.
 #[derive(Clone, Copy)]
