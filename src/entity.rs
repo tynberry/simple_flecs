@@ -64,12 +64,6 @@ impl<'a> EntityView<'a> {
         unsafe { ecs_enable(self.world.ptr(), self.entity_id, false) };
     }
 
-    /// Is the entity enabled?
-    pub fn is_enabled(&self) -> bool {
-        //unsafe { ecs_has_id(self.world.ptr(), self.entity_id) }
-        todo!()
-    }
-
     /// Gets entity path.
     ///
     /// This allocates a new string.
@@ -249,5 +243,19 @@ impl<'a> EntityView<'a> {
         unsafe {
             ecs_remove_id(self.world.ptr(), self.entity_id, id);
         }
+    }
+
+    /// Enables/Disables component/pair of the entity.
+    pub fn enable_comp(&self, id: impl IdFetcher, state: bool) {
+        let id = id.retrieve_id(self.world);
+        unsafe {
+            ecs_enable_id(self.world.ptr(), self.entity_id, id, state);
+        }
+    }
+
+    /// Checks whether component/pair is enabled.
+    pub fn is_enabled_comp(&self, id: impl IdFetcher) -> bool {
+        let id = id.retrieve_id(self.world);
+        unsafe { ecs_is_enabled_id(self.world.ptr(), self.entity_id, id) }
     }
 }
