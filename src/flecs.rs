@@ -4,7 +4,7 @@
 //!
 //! Source: https://github.com/Indra-db/Flecs-Rust/blob/ff68122ba303107cbf32027ab800d07fcdf97468/flecs_ecs/src/core/c_types.rs#L261
 use crate::{c_types::*, component::id::IdFetcher};
-use flecs_ecs_sys as sys;
+use flecs_ecs_sys::{self as sys, EcsDefaultChildComponent, EcsIdentifier, EcsPoly};
 
 pub trait FlecsTrait {}
 
@@ -19,6 +19,7 @@ macro_rules! create_pre_registered_component {
         pub struct $struct_name;
 
         impl crate::component::id::IdFetcher for $struct_name {
+            type COMPONENT = crate::component::id::UnknownType;
             fn retrieve_id(&self, _world: &crate::world::World) -> crate::entity::Entity {
                 $const_name
             }
@@ -151,6 +152,7 @@ pub type DefaultChildComponent = flecs_ecs_sys::EcsDefaultChildComponent;
 
 // component
 impl IdFetcher for flecs_ecs_sys::EcsComponent {
+    type COMPONENT = EcsComponent;
     fn retrieve_id(&self, _world: &crate::world::World) -> crate::entity::Entity {
         ECS_COMPONENT
     }
@@ -164,6 +166,7 @@ impl crate::component::Component for EcsComponent {
 
 //identifier
 impl IdFetcher for flecs_ecs_sys::EcsIdentifier {
+    type COMPONENT = EcsIdentifier;
     fn retrieve_id(&self, _world: &crate::world::World) -> crate::entity::Entity {
         ECS_IDENTIFIER
     }
@@ -177,6 +180,7 @@ impl crate::component::Component for Identifier {
 
 //poly
 impl IdFetcher for flecs_ecs_sys::EcsPoly {
+    type COMPONENT = EcsPoly;
     fn retrieve_id(&self, _world: &crate::world::World) -> crate::entity::Entity {
         ECS_POLY
     }
@@ -190,6 +194,7 @@ impl crate::component::Component for Poly {
 
 //default child component
 impl IdFetcher for flecs_ecs_sys::EcsDefaultChildComponent {
+    type COMPONENT = EcsDefaultChildComponent;
     fn retrieve_id(&self, _world: &crate::world::World) -> crate::entity::Entity {
         ECS_DEFAULT_CHILD_COMPONENT
     }

@@ -142,6 +142,13 @@ impl<'a> EntityView<'a> {
     /// # Note
     /// Cannot add data components since they would be unitialized which is not allowed in Rust.
     pub fn add<T: ComponentOrPair>(&self) {
+        //check if tag
+        const {
+            if !T::IS_TAG {
+                panic!("can only add tags");
+            }
+        }
+        //add them
         let id = if T::IS_PAIR {
             let first = id::<T::First>().retrieve_id(self.world);
             let second = id::<T::Second>().retrieve_id(self.world);
@@ -244,5 +251,11 @@ impl<'a> EntityView<'a> {
             let ptr = ecs_get_mut_id(self.world.ptr(), self.entity_id, comp_id) as *mut T;
             ptr.as_mut()
         }
+    }
+
+    /// Checks whether entity has a component.
+    pub fn has_id(&self, id: impl IdFetcher) -> bool {
+        let id = id.retrieve_id(self.world);
+        unsafe { ecs_has_id(self.world.ptr(), self.entity_id, id) }
     }
 }

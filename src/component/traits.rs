@@ -24,7 +24,8 @@ impl<T> ComponentOrPair for T
 where
     T: Component,
 {
-    const IS_PAIR: bool = T::IS_TAG;
+    const IS_PAIR: bool = false;
+    const IS_TAG: bool = T::IS_TAG;
     type First = T;
     type Second = EmptyType;
 }
