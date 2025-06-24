@@ -7,7 +7,10 @@ use std::{
 };
 
 use crate::{
-    component::{Component, ComponentView},
+    component::{
+        Component, ComponentView,
+        id::{Id, IdFetcher, id},
+    },
     entity::{Entity, EntityView},
 };
 
@@ -286,3 +289,72 @@ unsafe extern "C" fn dtor_callback<T: Component>(
 //------------------------------------------------------------------------------
 // SINGLETON
 //------------------------------------------------------------------------------
+
+impl World {
+    /// Gives you access to an entity for a singleton.
+    ///
+    /// The same as [Self::component], but does not register it.
+    pub fn singleton<'a, T: Component>(&'a self) -> EntityView<'a> {
+        let id = id::<T>().retrieve_id(self);
+        self.view(id)
+    }
+
+    /// Gets you an access to the singleton.
+    ///
+    /// Same as `self.singleton::<T>().get::<T>()`
+    ///
+    /// # Safety
+    ///
+    /// Same as `get` from EntityView.
+    pub unsafe fn singleton_get<T: Component>(&self) -> Option<&T> {
+        unsafe { self.singleton::<T>().get::<T>() }
+    }
+
+    /// Gets you a mutable access to the singleton.
+    ///
+    /// Same as `self.singleton::<T>().get::<T>()`
+    ///
+    /// # Safety
+    ///
+    /// Same as `get` from EntityView.
+    pub unsafe fn singleton_get_mut<T: Component>(&self) -> Option<&mut T> {
+        unsafe { self.singleton::<T>().get_mut::<T>() }
+    }
+
+    // Adds a tag singleton to the world.
+    //
+    // Tags are components without data.
+    //
+    // # Note
+    // Cannot add data components since they would be unitialized which is not allowed in Rust.
+    // singleton's don't make much sense as tags
+    //pub fn singleton_add<I: IdFetcher>(&self, id: I)
+    //where
+    //    I::COMPONENT: Component,
+    //{
+    //    const {
+    //        if !<I::COMPONENT as Component>::IS_TAG {
+    //            panic!("cannot add a data component as a singleton")
+    //        }
+    //    }
+    //    let id = id.retrieve_id(self);
+    //    self.singleton::<I::COMPONENT>().add(id)
+    //}
+
+    /// Sets data component a singleton.
+    pub fn singleton_set<T: Component>(&self, data: T) {
+        self.singleton::<T>().set_comp(data);
+    }
+
+    /// Removes a singleton.
+    pub fn singleton_remove<T: Component>(&self, id: Id<T>) {
+        self.singleton::<T>().remove(id);
+    }
+
+    /// Checks whether a singleton is set.
+    ///
+    /// Assumes the relevant component is registered.
+    pub fn singleton_exists<T: Component>(&self, id: Id<T>) -> bool {
+        self.singleton::<T>().has(id)
+    }
+}

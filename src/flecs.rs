@@ -19,7 +19,7 @@ macro_rules! create_pre_registered_component {
         pub struct $struct_name;
 
         impl crate::component::id::IdFetcher for $struct_name {
-            type COMPONENT = crate::component::id::UnknownType;
+            type CompPair = crate::component::id::UnknownType;
             fn retrieve_id(&self, _world: &crate::world::World) -> crate::entity::Entity {
                 $const_name
             }
@@ -152,7 +152,7 @@ pub type DefaultChildComponent = flecs_ecs_sys::EcsDefaultChildComponent;
 
 // component
 impl IdFetcher for flecs_ecs_sys::EcsComponent {
-    type COMPONENT = EcsComponent;
+    type CompPair = EcsComponent;
     fn retrieve_id(&self, _world: &crate::world::World) -> crate::entity::Entity {
         ECS_COMPONENT
     }
@@ -166,7 +166,7 @@ impl crate::component::Component for EcsComponent {
 
 //identifier
 impl IdFetcher for flecs_ecs_sys::EcsIdentifier {
-    type COMPONENT = EcsIdentifier;
+    type CompPair = EcsIdentifier;
     fn retrieve_id(&self, _world: &crate::world::World) -> crate::entity::Entity {
         ECS_IDENTIFIER
     }
@@ -180,7 +180,7 @@ impl crate::component::Component for Identifier {
 
 //poly
 impl IdFetcher for flecs_ecs_sys::EcsPoly {
-    type COMPONENT = EcsPoly;
+    type CompPair = EcsPoly;
     fn retrieve_id(&self, _world: &crate::world::World) -> crate::entity::Entity {
         ECS_POLY
     }
@@ -194,7 +194,7 @@ impl crate::component::Component for Poly {
 
 //default child component
 impl IdFetcher for flecs_ecs_sys::EcsDefaultChildComponent {
-    type COMPONENT = EcsDefaultChildComponent;
+    type CompPair = EcsDefaultChildComponent;
     fn retrieve_id(&self, _world: &crate::world::World) -> crate::entity::Entity {
         ECS_DEFAULT_CHILD_COMPONENT
     }

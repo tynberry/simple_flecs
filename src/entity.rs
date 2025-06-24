@@ -210,7 +210,7 @@ impl<'a> EntityView<'a> {
     /// # Safety
     ///
     /// You can invalidate the reference by performing any world mutating action.
-    pub unsafe fn get<T: Component>(&self) -> Option<&T> {
+    pub unsafe fn get<T: Component>(&self) -> Option<&'a T> {
         let comp_id = id::<T>().retrieve_id(self.world);
         unsafe {
             let ptr = ecs_get_id(self.world.ptr(), self.entity_id, comp_id) as *const T;
@@ -223,7 +223,7 @@ impl<'a> EntityView<'a> {
     /// # Safety
     ///
     /// You can invalidate the reference by performing any world mutating action.
-    pub unsafe fn get_mut<T: Component>(&mut self) -> Option<&mut T> {
+    pub unsafe fn get_mut<T: Component>(&mut self) -> Option<&'a mut T> {
         let comp_id = id::<T>().retrieve_id(self.world);
         unsafe {
             let ptr = ecs_get_mut_id(self.world.ptr(), self.entity_id, comp_id) as *mut T;

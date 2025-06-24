@@ -1,3 +1,4 @@
-pub mod basic;
-pub mod child;
-pub mod drop;
+mod basic;
+mod child;
+mod drop;
+mod singleton;

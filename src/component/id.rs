@@ -37,14 +37,14 @@ pub trait IdFetcher {
     /// Component of pair the Id represents.
     ///
     /// Is UnknownType if the type is.. unknown.
-    type COMPONENT: ComponentOrPair;
+    type CompPair: ComponentOrPair;
     /// Retrieves identifier from the world.
     fn retrieve_id(&self, world: &World) -> Entity;
 }
 
 //Id fetching capabilities for Entity
 impl IdFetcher for Entity {
-    type COMPONENT = UnknownType;
+    type CompPair = UnknownType;
     fn retrieve_id(&self, _world: &World) -> Entity {
         *self
     }
@@ -52,7 +52,7 @@ impl IdFetcher for Entity {
 
 //Id fetching capabilities for EntityView
 impl<'a> IdFetcher for EntityView<'a> {
-    type COMPONENT = UnknownType;
+    type CompPair = UnknownType;
     fn retrieve_id(&self, _world: &World) -> Entity {
         self.entity_id
     }
@@ -60,7 +60,7 @@ impl<'a> IdFetcher for EntityView<'a> {
 
 //Id fetching capabilities for ComponentView
 impl<'a> IdFetcher for ComponentView<'a> {
-    type COMPONENT = UnknownType;
+    type CompPair = UnknownType;
     fn retrieve_id(&self, _world: &World) -> Entity {
         self.entity_id
     }
@@ -69,7 +69,7 @@ impl<'a> IdFetcher for ComponentView<'a> {
 //Id fetching capabilities id structus
 //component
 impl<T: Component> IdFetcher for Id<T> {
-    type COMPONENT = T;
+    type CompPair = T;
     fn retrieve_id(&self, world: &World) -> Entity {
         //check if component has const id
         if let Some(id) = T::ID {
@@ -91,10 +91,10 @@ impl<L, R> IdFetcher for (L, R)
 where
     L: IdFetcher,
     R: IdFetcher,
-    L::COMPONENT: Component,
-    R::COMPONENT: Component,
+    L::CompPair: Component,
+    R::CompPair: Component,
 {
-    type COMPONENT = (L::COMPONENT, R::COMPONENT);
+    type CompPair = (L::CompPair, R::CompPair);
     fn retrieve_id(&self, world: &World) -> Entity {
         let left = self.0.retrieve_id(world);
         let right = self.1.retrieve_id(world);
