@@ -218,6 +218,38 @@ impl<'a> EntityView<'a> {
         }
     }
 
+    /// Gets a data pair where first is the data from the entity.
+    ///
+    /// # Safety
+    ///
+    /// You can invalidate the reference by performing any world mutating action.
+    pub unsafe fn get_first<T: Component>(&self, second: impl IdFetcher) -> Option<&'a T> {
+        //get ids
+        let first_id = id::<T>().retrieve_id(self.world);
+        let second_id = second.retrieve_id(self.world);
+        let pair_id = unsafe { ecs_make_pair(first_id, second_id) };
+        unsafe {
+            let ptr = ecs_get_id(self.world.ptr(), self.entity_id, pair_id) as *const T;
+            ptr.as_ref()
+        }
+    }
+
+    /// Gets a data pair where second is the data from the entity.
+    ///
+    /// # Safety
+    ///
+    /// You can invalidate the reference by performing any world mutating action.
+    pub unsafe fn get_second<T: Component>(&self, first: impl IdFetcher) -> Option<&'a T> {
+        //get ids
+        let second_id = id::<T>().retrieve_id(self.world);
+        let first_id = first.retrieve_id(self.world);
+        let pair_id = unsafe { ecs_make_pair(first_id, second_id) };
+        unsafe {
+            let ptr = ecs_get_id(self.world.ptr(), self.entity_id, pair_id) as *const T;
+            ptr.as_ref()
+        }
+    }
+
     /// Gets a component mutably from the entity.
     ///
     /// # Safety
@@ -227,6 +259,38 @@ impl<'a> EntityView<'a> {
         let comp_id = id::<T>().retrieve_id(self.world);
         unsafe {
             let ptr = ecs_get_mut_id(self.world.ptr(), self.entity_id, comp_id) as *mut T;
+            ptr.as_mut()
+        }
+    }
+
+    /// Gets a data pair mutably where first is the data from the entity.
+    ///
+    /// # Safety
+    ///
+    /// You can invalidate the reference by performing any world mutating action.
+    pub unsafe fn get_first_mut<T: Component>(&self, second: impl IdFetcher) -> Option<&'a mut T> {
+        //get ids
+        let first_id = id::<T>().retrieve_id(self.world);
+        let second_id = second.retrieve_id(self.world);
+        let pair_id = unsafe { ecs_make_pair(first_id, second_id) };
+        unsafe {
+            let ptr = ecs_get_mut_id(self.world.ptr(), self.entity_id, pair_id) as *mut T;
+            ptr.as_mut()
+        }
+    }
+
+    /// Gets a data pair mutably where second is the data from the entity.
+    ///
+    /// # Safety
+    ///
+    /// You can invalidate the reference by performing any world mutating action.
+    pub unsafe fn get_second_mut<T: Component>(&self, first: impl IdFetcher) -> Option<&'a mut T> {
+        //get ids
+        let second_id = id::<T>().retrieve_id(self.world);
+        let first_id = first.retrieve_id(self.world);
+        let pair_id = unsafe { ecs_make_pair(first_id, second_id) };
+        unsafe {
+            let ptr = ecs_get_mut_id(self.world.ptr(), self.entity_id, pair_id) as *mut T;
             ptr.as_mut()
         }
     }
