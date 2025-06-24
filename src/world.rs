@@ -124,8 +124,12 @@ impl World {
 }
 
 impl World {
-    /// Creates a new named component.
+    /// Creates a new named component or tag.
     pub fn component<T: Component>(&mut self, symbol: &CStr) -> ComponentView<'_> {
+        //is it a tag
+        if T::IS_TAG {
+            return self.tag::<T>(symbol);
+        }
         //is it already registered in flecs?
         if let Some(entity) = self.lookup_symbol(symbol) {
             let id = entity.entity_id;
@@ -163,6 +167,39 @@ impl World {
         let id = unsafe { ecs_component_init(self.ptr(), &cdesc as *const _) };
         //check it
         assert!(id != 0, "failed to register a component");
+        //remember final id
+        self.component_map.insert(TypeId::of::<T>(), id);
+        ComponentView {
+            world: self,
+            entity_id: id,
+        }
+    }
+
+    /// Registers a new tag.
+    pub fn tag<T: Component>(&mut self, symbol: &CStr) -> ComponentView<'_> {
+        //check if it is a tag
+        if !T::IS_TAG {
+            panic!("tag function only registers tags");
+        }
+        //is it already registered in flecs?
+        if let Some(entity) = self.lookup_symbol(symbol) {
+            let id = entity.entity_id;
+            self.component_map.insert(TypeId::of::<T>(), id);
+            return ComponentView {
+                world: self,
+                entity_id: id,
+            };
+        }
+        //register tag in flecs
+        let edesc = ecs_entity_desc_t {
+            name: symbol.as_ptr(),
+            symbol: symbol.as_ptr(),
+            use_low_id: true,
+            ..Default::default()
+        };
+        let id = unsafe { ecs_entity_init(self.ptr(), &edesc as *const _) };
+        //check it
+        assert!(id != 0, "failed to register a tag");
         //remember final id
         self.component_map.insert(TypeId::of::<T>(), id);
         ComponentView {
