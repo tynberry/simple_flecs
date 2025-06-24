@@ -259,3 +259,23 @@ impl<'a> EntityView<'a> {
         unsafe { ecs_is_enabled_id(self.world.ptr(), self.entity_id, id) }
     }
 }
+
+//------------------------------------------------------------------------------
+// MISC
+//------------------------------------------------------------------------------
+
+impl<'a> EntityView<'a> {
+    /// Returns a debug string of the entity's archetype.
+    pub fn archetype_str(&self) -> String {
+        //get archetype
+        let typ = unsafe { ecs_get_type(self.world.ptr(), self.entity_id) };
+        //turn it into string
+        let type_str = unsafe { ecs_type_str(self.world.ptr(), typ) };
+        let c_str = unsafe { CStr::from_ptr(type_str) };
+        let type_owned_str = c_str.to_str().unwrap().to_owned();
+        //free pointer
+        let api = unsafe { ecs_os_get_api() };
+        unsafe { (api.free_.unwrap())(type_str as *mut std::ffi::c_void) };
+        type_owned_str
+    }
+}
