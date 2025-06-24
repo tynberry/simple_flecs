@@ -10,7 +10,6 @@ use crate::{
     component::{
         Component,
         id::{IdFetcher, id},
-        traits::ComponentOrPair,
     },
     world::World,
 };
@@ -135,37 +134,14 @@ impl<'a> From<EntityView<'a>> for Entity {
 //------------------------------------------------------------------------------
 
 impl<'a> EntityView<'a> {
-    /// Adds a tag or a tag pair from a type to the entity.
-    ///
-    /// Tags are components without data.
-    ///
-    /// # Note
-    /// Cannot add data components since they would be unitialized which is not allowed in Rust.
-    pub fn add<T: ComponentOrPair>(&self) {
-        //check if tag
-        const {
-            if !T::IS_TAG {
-                panic!("can only add tags");
-            }
-        }
-        //add them
-        let id = if T::IS_PAIR {
-            let first = id::<T::First>().retrieve_id(self.world);
-            let second = id::<T::Second>().retrieve_id(self.world);
-            unsafe { ecs_make_pair(first, second) }
-        } else {
-            id::<T::First>().retrieve_id(self.world)
-        };
-        unsafe { ecs_add_id(self.world.ptr(), self.entity_id, id) }
-    }
-
     /// Adds a tag from an id to the entity.
     ///
     /// Tags are components without data.
     ///
     /// # Note
     /// Cannot add data components since they would be unitialized which is not allowed in Rust.
-    pub fn add_id(&self, id: impl IdFetcher) {
+    /// TODO: Add a check against that.
+    pub fn add(&self, id: impl IdFetcher) {
         let id = id.retrieve_id(self.world);
         unsafe { ecs_add_id(self.world.ptr(), self.entity_id, id) }
     }
@@ -253,9 +229,17 @@ impl<'a> EntityView<'a> {
         }
     }
 
-    /// Checks whether entity has a component.
-    pub fn has_id(&self, id: impl IdFetcher) -> bool {
+    /// Checks whether entity has a component or pair.
+    pub fn has(&self, id: impl IdFetcher) -> bool {
         let id = id.retrieve_id(self.world);
         unsafe { ecs_has_id(self.world.ptr(), self.entity_id, id) }
+    }
+
+    /// Removes a component or pair.
+    pub fn remove(&self, id: impl IdFetcher) {
+        let id = id.retrieve_id(self.world);
+        unsafe {
+            ecs_remove_id(self.world.ptr(), self.entity_id, id);
+        }
     }
 }
