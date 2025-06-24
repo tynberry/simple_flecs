@@ -71,6 +71,11 @@ impl<'a> IdFetcher for ComponentView<'a> {
 impl<T: Component> IdFetcher for Id<T> {
     type COMPONENT = T;
     fn retrieve_id(&self, world: &World) -> Entity {
+        //check if component has const id
+        if let Some(id) = T::ID {
+            return id;
+        }
+        //retrieve dynamicaly
         let Some(id) = world.component_map.get(&TypeId::of::<T>()) else {
             panic!(
                 "component {:?} not implemented",
