@@ -8,6 +8,7 @@ use crate::{
     world::World,
 };
 use flecs_ecs_sys::*;
+use id::IdFetcher;
 
 /// Component for the ECS, works more as a marker.
 pub trait Component: Any + Sized {
@@ -73,7 +74,8 @@ impl<'a> ComponentView<'a> {
 
     /// Adds a trait.
     #[inline]
-    pub fn add_trait(&self, trait_id: impl Into<Entity>) {
-        unsafe { ecs_add_id(self.world.ptr(), self.entity_id, trait_id.into()) }
+    pub fn add_trait(&self, trait_id: impl IdFetcher) {
+        let id = trait_id.retrieve_id(self.world);
+        unsafe { ecs_add_id(self.world.ptr(), self.entity_id, id) }
     }
 }
