@@ -12,6 +12,7 @@ use crate::{
 };
 
 /// ECS world.
+#[derive(Debug)]
 pub struct World {
     /// Pointer to the underlying raw world.
     ptr: NonNull<ecs_world_t>,

@@ -18,11 +18,19 @@ use crate::{
 pub type Entity = ecs_entity_t;
 
 /// Builder pattern for entity manipulation.
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct EntityView<'a> {
     pub(crate) world: &'a World,
     pub(crate) entity_id: Entity,
 }
+
+impl<'a> PartialEq for EntityView<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        self.entity_id == other.entity_id
+    }
+}
+
+impl<'a> Eq for EntityView<'a> {}
 
 impl<'a> EntityView<'a> {
     /// Gets entity id.

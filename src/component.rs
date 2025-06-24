@@ -31,6 +31,14 @@ pub struct ComponentView<'a> {
     pub(crate) entity_id: Entity,
 }
 
+impl<'a> PartialEq for ComponentView<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        self.entity_id == other.entity_id
+    }
+}
+
+impl<'a> Eq for ComponentView<'a> {}
+
 impl<'a> ComponentView<'a> {
     /// Treats component as entity.
     #[inline]
