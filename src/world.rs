@@ -12,17 +12,24 @@ use crate::{
         id::{Id, IdFetcher, id},
     },
     entity::{Entity, EntityView},
+    query::QueryBuilder,
 };
+
+pub(crate) type ComponentMap = AHashMap<TypeId, Entity>;
 
 /// ECS world.
 #[derive(Debug)]
 pub struct World {
     /// Pointer to the underlying raw world.
-    ptr: NonNull<ecs_world_t>,
-    /// Component map for this current crate.
+    pub(crate) ptr: NonNull<ecs_world_t>,
+    /// Owns the pointer?
+    owned: bool,
+    /// Leaked component map for this current crate.
+    ///
+    /// Because it is leaked, it will stay in one place till the world is dropped.
     ///
     /// World must **not** be passed across (at least) dynamic linking boundary.
-    pub(crate) component_map: AHashMap<TypeId, Entity>,
+    pub(crate) component_map: NonNull<ComponentMap>,
 }
 
 //------------------------------------------------------------------------------
@@ -31,9 +38,14 @@ pub struct World {
 
 impl Default for World {
     fn default() -> Self {
+        //leak component map
+        let component_map = Box::new(AHashMap::new());
+        let component_map = Box::leak(component_map);
+        //compose world
         Self {
             ptr: unsafe { NonNull::new(ecs_init()).expect("could not init ecs world") },
-            component_map: Default::default(),
+            owned: true,
+            component_map: component_map.into(),
         }
     }
 }
@@ -42,6 +54,50 @@ impl World {
     /// Creates an empty new ECS world.
     pub fn new() -> Self {
         World::default()
+    }
+
+    /// Creates a referring world from a Flecs pointer.
+    ///
+    /// Component map of such world is empty and all components must be re-registered.
+    ///
+    /// # Safety
+    ///
+    /// The pointer must be a valid pointer to a Flecs world.
+    pub unsafe fn from_ptr(ptr: *mut ecs_world_t) -> Self {
+        assert!(!ptr.is_null(), "cannot create a world from a null pointer");
+        //leak component map
+        let component_map = Box::new(AHashMap::new());
+        let component_map = Box::leak(component_map);
+        World {
+            ptr: unsafe { NonNull::new_unchecked(ptr) },
+            owned: false,
+            component_map: component_map.into(),
+        }
+    }
+
+    /// Creats a referring world from a Flecs pointer and pointer to a component map.
+    ///
+    /// Component map of such world must come from the same crate, it must not be
+    /// transferred across dynamic linking boundaries.
+    ///
+    /// # Safety
+    ///
+    /// The pointer must be a valid pointer to a Flecs world and the component map must be valid
+    /// and from the same place.
+    pub unsafe fn from_ptr_and_map(
+        ptr: *mut ecs_world_t,
+        component_map: *mut ComponentMap,
+    ) -> Self {
+        assert!(!ptr.is_null(), "cannot create a world from a null pointer");
+        assert!(
+            !component_map.is_null(),
+            "cannot create a world from a null component map pointer"
+        );
+        World {
+            ptr: unsafe { NonNull::new_unchecked(ptr) },
+            owned: false,
+            component_map: unsafe { NonNull::new_unchecked(component_map) },
+        }
     }
 
     /// Retrieves underlying pointer.
@@ -55,6 +111,14 @@ impl Drop for World {
     fn drop(&mut self) {
         //if panicking, we are going to be disposed off anyways
         if std::thread::panicking() {
+            return;
+        }
+        //clear component map
+        let component_map = unsafe { self.component_map.as_mut() };
+        let component_map = unsafe { Box::from_raw(component_map) };
+        drop(component_map);
+        //we do not own the world
+        if !self.owned {
             return;
         }
         //clear ecs
@@ -128,7 +192,7 @@ impl World {
 }
 
 impl World {
-    /// Creates a new named component or tag.
+    /// Creates a new named data component or tag.
     pub fn component<T: Component>(&mut self, symbol: &CStr) -> ComponentView<'_> {
         //is it a tag
         if T::IS_TAG {
@@ -137,7 +201,7 @@ impl World {
         //is it already registered in flecs?
         if let Some(entity) = self.lookup_symbol(symbol) {
             let id = entity.entity_id;
-            self.component_map.insert(TypeId::of::<T>(), id);
+            unsafe { self.component_map.as_mut() }.insert(TypeId::of::<T>(), id);
             return ComponentView {
                 world: self,
                 entity_id: id,
@@ -172,7 +236,7 @@ impl World {
         //check it
         assert!(id != 0, "failed to register a component");
         //remember final id
-        self.component_map.insert(TypeId::of::<T>(), id);
+        unsafe { self.component_map.as_mut() }.insert(TypeId::of::<T>(), id);
         ComponentView {
             world: self,
             entity_id: id,
@@ -188,7 +252,7 @@ impl World {
         //is it already registered in flecs?
         if let Some(entity) = self.lookup_symbol(symbol) {
             let id = entity.entity_id;
-            self.component_map.insert(TypeId::of::<T>(), id);
+            unsafe { self.component_map.as_mut() }.insert(TypeId::of::<T>(), id);
             return ComponentView {
                 world: self,
                 entity_id: id,
@@ -205,7 +269,7 @@ impl World {
         //check it
         assert!(id != 0, "failed to register a tag");
         //remember final id
-        self.component_map.insert(TypeId::of::<T>(), id);
+        unsafe { self.component_map.as_mut() }.insert(TypeId::of::<T>(), id);
         ComponentView {
             world: self,
             entity_id: id,
@@ -217,7 +281,7 @@ impl World {
         //is it already registered in flecs?
         if let Some(entity) = self.lookup(symbol) {
             let id = entity.entity_id;
-            self.component_map.insert(TypeId::of::<T>(), id);
+            unsafe { self.component_map.as_mut() }.insert(TypeId::of::<T>(), id);
             return ComponentView {
                 world: self,
                 entity_id: id,
@@ -253,7 +317,7 @@ impl World {
         //check it
         assert!(id != 0, "failed to register a component");
         //remember final id
-        self.component_map.insert(TypeId::of::<T>(), id);
+        unsafe { self.component_map.as_mut() }.insert(TypeId::of::<T>(), id);
         ComponentView {
             world: self,
             entity_id: id,
@@ -356,5 +420,36 @@ impl World {
     /// Assumes the relevant component is registered.
     pub fn singleton_exists<T: Component>(&self, id: Id<T>) -> bool {
         self.singleton::<T>().has(id)
+    }
+}
+
+//------------------------------------------------------------------------------
+// QUERY
+//------------------------------------------------------------------------------
+
+impl World {
+    /// Creates an empty query builder.
+    pub fn query<'a>(&'a self) -> QueryBuilder<'a> {
+        //create an empty descriptor
+        let desc = ecs_query_desc_t::default();
+        //create a builder
+        QueryBuilder {
+            inner: desc,
+            expr: None,
+            world: self,
+        }
+    }
+
+    /// Creates a query builder from an expression.
+    pub fn query_expr<'a>(&'a self, expr: &CStr) -> QueryBuilder<'a> {
+        //create an empty descriptor
+        let desc = ecs_query_desc_t::default();
+        //create a builder
+        let builder = QueryBuilder {
+            inner: desc,
+            expr: None,
+            world: self,
+        };
+        builder.expression(expr)
     }
 }

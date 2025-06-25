@@ -76,7 +76,7 @@ impl<T: Component> IdFetcher for Id<T> {
             return id;
         }
         //retrieve dynamicaly
-        let Some(id) = world.component_map.get(&TypeId::of::<T>()) else {
+        let Some(id) = unsafe { world.component_map.as_ref() }.get(&TypeId::of::<T>()) else {
             panic!(
                 "component {:?} not implemented",
                 core::any::type_name::<T>()
