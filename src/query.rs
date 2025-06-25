@@ -117,7 +117,7 @@ impl<'a> QueryBuilder<'a> {
     }
 
     /// Builds the query to an associated named entity.
-    pub fn buiild_with_entity_named(self, name: &CStr) -> Query {
+    pub fn build_with_entity_named(self, name: &CStr) -> Query {
         let entity_id = Some(self.world.entity_named(name).id());
         let query_ptr = unsafe { ecs_query_init(self.world.ptr(), &self.inner as *const _) };
         Query {
