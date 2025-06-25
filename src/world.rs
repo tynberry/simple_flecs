@@ -30,6 +30,8 @@ pub struct World {
     ///
     /// World must **not** be passed across (at least) dynamic linking boundary.
     pub(crate) component_map: NonNull<ComponentMap>,
+    /// Owns the component map.
+    map_owned: bool,
 }
 
 //------------------------------------------------------------------------------
@@ -46,6 +48,7 @@ impl Default for World {
             ptr: unsafe { NonNull::new(ecs_init()).expect("could not init ecs world") },
             owned: true,
             component_map: component_map.into(),
+            map_owned: true,
         }
     }
 }
@@ -72,6 +75,7 @@ impl World {
             ptr: unsafe { NonNull::new_unchecked(ptr) },
             owned: false,
             component_map: component_map.into(),
+            map_owned: true,
         }
     }
 
@@ -97,6 +101,7 @@ impl World {
             ptr: unsafe { NonNull::new_unchecked(ptr) },
             owned: false,
             component_map: unsafe { NonNull::new_unchecked(component_map) },
+            map_owned: false,
         }
     }
 
@@ -114,9 +119,11 @@ impl Drop for World {
             return;
         }
         //clear component map
-        let component_map = unsafe { self.component_map.as_mut() };
-        let component_map = unsafe { Box::from_raw(component_map) };
-        drop(component_map);
+        if self.map_owned {
+            let component_map = unsafe { self.component_map.as_mut() };
+            let component_map = unsafe { Box::from_raw(component_map) };
+            drop(component_map);
+        }
         //we do not own the world
         if !self.owned {
             return;
