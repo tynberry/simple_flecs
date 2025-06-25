@@ -50,12 +50,11 @@ impl Drop for Query {
 
 impl Query {
     /// Begin query iteration.
-    pub fn iter(&self) -> Iter {
+    pub fn iter(&self) -> Iter<false> {
         let mut iter = unsafe { ecs_query_iter(self.world_ptr.as_ptr(), self.query.as_ptr()) };
         iter.binding_ctx = self.component_map.as_ptr() as *mut c_void;
         Iter {
-            iter,
-            query: self.query.as_ptr(),
+            iter: iter::MaybeOwnedIter::Owned(iter),
         }
     }
 }

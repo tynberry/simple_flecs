@@ -13,6 +13,7 @@ use crate::{
     },
     entity::{Entity, EntityView},
     query::QueryBuilder,
+    system::SystemBuilder,
 };
 
 pub(crate) type ComponentMap = AHashMap<TypeId, Entity>;
@@ -431,7 +432,7 @@ impl World {
 }
 
 //------------------------------------------------------------------------------
-// QUERY
+// QUERY & SYSTEMS
 //------------------------------------------------------------------------------
 
 impl World {
@@ -454,6 +455,33 @@ impl World {
         //create a builder
         let builder = QueryBuilder {
             inner: desc,
+            expr: None,
+            world: self,
+        };
+        builder.expression(expr)
+    }
+
+    /// Creates an empty system builder.
+    pub fn system<'a>(&'a self) -> SystemBuilder<'a> {
+        //create an empty descriptor
+        let desc = ecs_system_desc_t::default();
+        //create a builder
+        SystemBuilder {
+            kind: 0,
+            inner: desc,
+            expr: None,
+            world: self,
+        }
+    }
+
+    /// Creates a system builder from an expression.
+    pub fn system_expr<'a>(&'a self, expr: &CStr) -> SystemBuilder<'a> {
+        //create an empty descriptor
+        let desc = ecs_system_desc_t::default();
+        //create a builder
+        let builder = SystemBuilder {
+            inner: desc,
+            kind: 0,
             expr: None,
             world: self,
         };

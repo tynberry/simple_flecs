@@ -1,7 +1,7 @@
 use std::{
     ffi::CStr,
     marker::PhantomData,
-    ops::{Index, IndexMut},
+    ops::{Deref, Index, IndexMut},
     ptr::NonNull,
 };
 
@@ -62,6 +62,34 @@ impl<'a, T: Component> IndexMut<usize> for Field<'a, T> {
     }
 }
 
+/// Owned or pointer to sys iterator.
+#[allow(clippy::large_enum_variant)]
+pub(crate) enum MaybeOwnedIter {
+    Owned(ecs_iter_t),
+    Ptr(NonNull<ecs_iter_t>),
+}
+
+impl MaybeOwnedIter {
+    /// Converts the iterator to a pointer.
+    pub fn as_ptr(&self) -> *mut ecs_iter_t {
+        match self {
+            MaybeOwnedIter::Owned(iter) => iter as *const _ as *mut _,
+            MaybeOwnedIter::Ptr(ptr) => ptr.as_ptr(),
+        }
+    }
+}
+
+impl Deref for MaybeOwnedIter {
+    type Target = ecs_iter_t;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            MaybeOwnedIter::Owned(iter) => iter,
+            MaybeOwnedIter::Ptr(ptr) => unsafe { ptr.as_ref() },
+        }
+    }
+}
+
 /// Table iterator for a query or system.
 ///
 /// This iterator must not outlive the query, system it was created in.
@@ -70,23 +98,45 @@ impl<'a, T: Component> IndexMut<usize> for Field<'a, T> {
 /// map pointer.
 ///
 /// Iter must not be passed between threads and dynamic linking boundaries.
-pub struct Iter {
-    pub(super) query: *mut ecs_query_t,
-    pub(crate) iter: ecs_iter_t,
+///
+/// SYSTEM = true, means that iterator was produced by a system.
+/// SYSTEM = false, means the iterator comes from a query.
+pub struct Iter<const SYSTEM: bool> {
+    pub(crate) iter: MaybeOwnedIter,
 }
 
-impl Iter {
+impl<const SYSTEM: bool> Iter<SYSTEM> {
     /// Jumps to the next table in the iterator.
     #[inline]
     pub fn advance(&mut self) -> bool {
-        unsafe { ecs_query_next(&mut self.iter as *mut _) }
+        if SYSTEM {
+            unsafe { ecs_iter_next(self.iter.as_ptr()) }
+        } else {
+            unsafe { ecs_query_next(self.iter.as_ptr()) }
+        }
+    }
+
+    /// Accesses relevant world.
+    ///
+    /// Creates a non owning reference, dropping it does not drop neither the world nor the
+    /// component map.
+    #[inline]
+    pub fn world(&self) -> World {
+        unsafe {
+            //if SYSTEM {
+            //    let binding = self.iter.binding_ctx as *mut *mut ComponentMap;
+            //    World::from_ptr_and_map(self.iter.world, *binding)
+            //} else {
+            World::from_ptr_and_map(self.iter.world, self.iter.binding_ctx as *mut ComponentMap)
+            //}
+        }
     }
 
     /// Checks the id of a term.
     pub fn check_id(&self, id: impl IdFetcher, index: i8) -> bool {
         // SAFETY:
         // Unless mutliple threads are accessing the same iterator, this is safe.
-        let it_ptr = &self.iter as *const ecs_iter_t as *mut _;
+        let it_ptr = self.iter.as_ptr();
         //check id
         let world_ref = unsafe {
             World::from_ptr_and_map(self.iter.world, self.iter.binding_ctx as *mut ComponentMap)
@@ -100,7 +150,7 @@ impl Iter {
     pub fn has(&self, index: i8) -> bool {
         // SAFETY:
         // Unless mutliple threads are accessing the same iterator, this is safe.
-        let it_ptr = &self.iter as *const ecs_iter_t as *mut _;
+        let it_ptr = self.iter.as_ptr();
         unsafe { ecs_field_is_set(it_ptr, index) }
     }
 
@@ -109,7 +159,7 @@ impl Iter {
     pub fn source(&self, index: i8) -> Option<Entity> {
         // SAFETY:
         // Unless mutliple threads are accessing the same iterator, this is safe.
-        let it_ptr = &self.iter as *const ecs_iter_t as *mut _;
+        let it_ptr = self.iter.as_ptr();
         let src = unsafe { ecs_field_src(it_ptr, index) };
         if src == 0 { None } else { Some(src) }
     }
@@ -117,7 +167,7 @@ impl Iter {
     /// Sets a variable to an id.
     pub fn set_var(&self, variable: &CStr, id: impl IdFetcher) {
         //retrieve variable id
-        let var_loc = unsafe { ecs_query_find_var(self.query, variable.as_ptr()) };
+        let var_loc = unsafe { ecs_query_find_var(self.iter.query, variable.as_ptr()) };
         //retrieve entity id
         let world_ref = unsafe {
             World::from_ptr_and_map(self.iter.world, self.iter.binding_ctx as *mut ComponentMap)
@@ -125,7 +175,7 @@ impl Iter {
         let id = id.retrieve_id(&world_ref);
         // SAFETY:
         // Unless mutliple threads are accessing the same iterator, this is safe.
-        let it_ptr = &self.iter as *const ecs_iter_t as *mut _;
+        let it_ptr = self.iter.as_ptr();
         unsafe {
             ecs_iter_set_var(it_ptr, var_loc, id);
         }
@@ -162,7 +212,7 @@ impl Iter {
         }
         // SAFETY:
         // Unless mutliple threads are accessing the same iterator, this is safe.
-        let it_ptr = &self.iter as *const ecs_iter_t as *mut _;
+        let it_ptr = self.iter.as_ptr();
         //check if the field is set
         if unsafe { !ecs_field_is_set(it_ptr, index) } {
             return None;
