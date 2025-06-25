@@ -150,6 +150,11 @@ impl<'a> EntityView<'a> {
 
     /// Sets a component to an entity.
     pub fn set_comp<T: Component>(&self, data: T) {
+        const {
+            if T::IS_TAG {
+                panic!("cannot set a tag component");
+            }
+        }
         //get id
         let comp_id = id::<T>().retrieve_id(self.world);
         //prevent dropping, since it copies whatever is there, don't want to accidentaly deallocate
