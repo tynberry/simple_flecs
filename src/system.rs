@@ -15,6 +15,7 @@ use crate::{
         id::{IdFetcher, id},
     },
     entity::Entity,
+    flecs::DependsOn,
     query::{
         callbacks::OrderByFunc,
         iter::{Iter, MaybeOwnedIter},
@@ -92,6 +93,21 @@ impl<'a> SystemBuilder<'a> {
         self
     }
 
+    /// Sets system's rate.
+    ///
+    /// If the rate is set to 2, the system will run every second frame.
+    /// If set to 3, it will run every third frame, and so on.
+    pub fn rate(mut self, rate: u32) -> Self {
+        self.inner.rate = rate as i32;
+        self
+    }
+
+    /// Sets system's interval.
+    pub fn interval(mut self, interval: f32) -> Self {
+        self.inner.interval = interval;
+        self
+    }
+
     /// Finishes this system with default callback.
     pub fn build<F>(mut self, callback: F)
     where
@@ -101,7 +117,45 @@ impl<'a> SystemBuilder<'a> {
         self.inner.callback = Some(system_callback::<F>);
         self.inner.callback_ctx =
             Box::leak(Box::new(CallbackContext { func: callback })) as *mut _ as *mut c_void;
+        self.inner.callback_ctx_free = Some(callback_ctx_free::<F>);
         self.inner.query.binding_ctx = self.world.component_map.as_ptr() as *mut c_void;
+        //creates an entity
+        let entity = self.world.entity();
+        //adds a kind if any
+        if self.kind != 0 {
+            entity.add((DependsOn, self.kind));
+        }
+        //sets the entity
+        self.inner.entity = entity.id();
+        //creates the system
+        unsafe {
+            ecs_system_init(self.world.ptr(), &self.inner as *const _);
+        }
+    }
+
+    /// Finishes this system with default callback.
+    pub fn build_named<F>(mut self, name: &CStr, callback: F)
+    where
+        F: Fn(Iter<true>) + 'static,
+    {
+        //set callback
+        self.inner.callback = Some(system_callback::<F>);
+        self.inner.callback_ctx =
+            Box::leak(Box::new(CallbackContext { func: callback })) as *mut _ as *mut c_void;
+        self.inner.callback_ctx_free = Some(callback_ctx_free::<F>);
+        self.inner.query.binding_ctx = self.world.component_map.as_ptr() as *mut c_void;
+        //creates an entity
+        let entity = self.world.entity_named(name);
+        //adds a kind if any
+        if self.kind != 0 {
+            entity.add((DependsOn, self.kind));
+        }
+        //sets the entity
+        self.inner.entity = entity.id();
+        //creates the system
+        unsafe {
+            ecs_system_init(self.world.ptr(), &self.inner as *const _);
+        }
     }
 }
 
@@ -115,4 +169,10 @@ unsafe extern "C" fn system_callback<F: Fn(Iter<true>) + 'static>(iter: *mut ecs
     };
     //call callback
     (context.func)(iter);
+}
+
+unsafe extern "C" fn callback_ctx_free<F: Fn(Iter<true>) + 'static>(ctx: *mut c_void) {
+    // SAFETY:
+    // ctx is a pointer to CallbackContext<F>, so we can safely cast it back.
+    let _ = unsafe { Box::from_raw(ctx as *mut CallbackContext<F>) };
 }
