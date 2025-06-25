@@ -123,12 +123,12 @@ impl<const SYSTEM: bool> Iter<SYSTEM> {
     #[inline]
     pub fn world(&self) -> World {
         unsafe {
-            //if SYSTEM {
-            //    let binding = self.iter.binding_ctx as *mut *mut ComponentMap;
-            //    World::from_ptr_and_map(self.iter.world, *binding)
-            //} else {
-            World::from_ptr_and_map(self.iter.world, self.iter.binding_ctx as *mut ComponentMap)
-            //}
+            if SYSTEM {
+                let binding = self.iter.callback_ctx as *mut *mut ComponentMap;
+                World::from_ptr_and_map(self.iter.world, *binding)
+            } else {
+                World::from_ptr_and_map(self.iter.world, self.iter.binding_ctx as *mut ComponentMap)
+            }
         }
     }
 
@@ -138,9 +138,7 @@ impl<const SYSTEM: bool> Iter<SYSTEM> {
         // Unless mutliple threads are accessing the same iterator, this is safe.
         let it_ptr = self.iter.as_ptr();
         //check id
-        let world_ref = unsafe {
-            World::from_ptr_and_map(self.iter.world, self.iter.binding_ctx as *mut ComponentMap)
-        };
+        let world_ref = self.world();
         let component_id = id.retrieve_id(&world_ref);
         let field_id = unsafe { ecs_field_id(it_ptr, index) };
         component_id == field_id
@@ -169,9 +167,7 @@ impl<const SYSTEM: bool> Iter<SYSTEM> {
         //retrieve variable id
         let var_loc = unsafe { ecs_query_find_var(self.iter.query, variable.as_ptr()) };
         //retrieve entity id
-        let world_ref = unsafe {
-            World::from_ptr_and_map(self.iter.world, self.iter.binding_ctx as *mut ComponentMap)
-        };
+        let world_ref = self.world();
         let id = id.retrieve_id(&world_ref);
         // SAFETY:
         // Unless mutliple threads are accessing the same iterator, this is safe.
@@ -241,9 +237,7 @@ impl<const SYSTEM: bool> Iter<SYSTEM> {
     /// you must use the returned Field with such considerations.
     pub unsafe fn get_from_table<T: Component>(&self) -> Option<&mut [T]> {
         //check id
-        let world_ref = unsafe {
-            World::from_ptr_and_map(self.iter.world, self.iter.binding_ctx as *mut ComponentMap)
-        };
+        let world_ref = self.world();
         let component_id = id::<T>().retrieve_id(&world_ref);
         //get data
         let ptr = unsafe {

@@ -12,17 +12,19 @@ use crate::{
         id::{IdFetcher, id},
     },
     entity::Entity,
-    flecs::DependsOn,
+    flecs::{DependsOn, pipeline::OnUpdate},
     query::{
         callbacks::OrderByFunc,
         iter::{Iter, MaybeOwnedIter},
     },
-    world::World,
+    world::{ComponentMap, World},
 };
 
 /// Binding context for systems.
 #[repr(C)]
 pub struct CallbackContext<F: Fn(Iter<true>)> {
+    /// This field must always be first!
+    component_map: *mut ComponentMap,
     func: F,
 }
 
@@ -106,10 +108,11 @@ impl<'a> SystemBuilder<'a> {
     {
         //set callback
         self.inner.callback = Some(system_callback::<F>);
-        self.inner.callback_ctx =
-            Box::leak(Box::new(CallbackContext { func: callback })) as *mut _ as *mut c_void;
+        self.inner.callback_ctx = Box::leak(Box::new(CallbackContext {
+            component_map: self.world.component_map.as_ptr(),
+            func: callback,
+        })) as *mut _ as *mut c_void;
         self.inner.callback_ctx_free = Some(callback_ctx_free::<F>);
-        self.inner.query.binding_ctx = self.world.component_map.as_ptr() as *mut c_void;
         //creates an entity
         let entity = self.world.entity();
         //adds a kind if any
@@ -131,15 +134,18 @@ impl<'a> SystemBuilder<'a> {
     {
         //set callback
         self.inner.callback = Some(system_callback::<F>);
-        self.inner.callback_ctx =
-            Box::leak(Box::new(CallbackContext { func: callback })) as *mut _ as *mut c_void;
+        self.inner.callback_ctx = Box::leak(Box::new(CallbackContext {
+            component_map: self.world.component_map.as_ptr(),
+            func: callback,
+        })) as *mut _ as *mut c_void;
         self.inner.callback_ctx_free = Some(callback_ctx_free::<F>);
-        self.inner.query.binding_ctx = self.world.component_map.as_ptr() as *mut c_void;
         //creates an entity
         let entity = self.world.entity_named(name);
         //adds a kind if any
         if self.kind != 0 {
             entity.add((DependsOn, self.kind));
+        } else {
+            entity.add((DependsOn, OnUpdate));
         }
         //sets the entity
         self.inner.entity = entity.id();
