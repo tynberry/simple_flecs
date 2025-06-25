@@ -488,3 +488,63 @@ impl World {
         builder.expression(expr)
     }
 }
+
+//------------------------------------------------------------------------------
+// PROGRESSING AND META STUFF
+//------------------------------------------------------------------------------
+
+impl World {
+    /// Begins a deferred mode.
+    ///
+    /// Every operation will be postponed until `defer_end` is called.
+    #[inline]
+    pub fn defer_begin(&self) {
+        unsafe {
+            ecs_defer_begin(self.ptr());
+        }
+    }
+
+    /// Ends a deferred mode.
+    #[inline]
+    pub fn defer_end(&self) {
+        unsafe {
+            ecs_defer_end(self.ptr());
+        }
+    }
+
+    /// Suspends deferred mode.
+    #[inline]
+    pub fn defer_suspend(&self) {
+        unsafe {
+            ecs_defer_suspend(self.ptr());
+        }
+    }
+
+    /// Resumes deferred mode.
+    #[inline]
+    pub fn defer_resume(&self) {
+        unsafe {
+            ecs_defer_resume(self.ptr());
+        }
+    }
+
+    /// Progresses the world.
+    ///
+    /// Calls every system.
+    #[inline]
+    pub fn progress(&self) {
+        unsafe {
+            ecs_progress(self.ptr(), 0.0);
+        }
+    }
+
+    /// Progresses the world with a specified delta time.
+    ///
+    /// Calls every system.
+    #[inline]
+    pub fn progress_deltatime(&self, dt: f32) {
+        unsafe {
+            ecs_progress(self.ptr(), dt);
+        }
+    }
+}
