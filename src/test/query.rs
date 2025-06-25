@@ -13,9 +13,16 @@ pub struct TestData {
 
 pub struct TestTag;
 
+pub struct TestTriple;
+pub struct TestMultiplier {
+    mult: usize,
+}
+
 impl Component for TestSingleton {}
 impl Component for TestData {}
 impl Component for TestTag {}
+impl Component for TestTriple {}
+impl Component for TestMultiplier {}
 
 #[test]
 fn query_test() {
@@ -27,6 +34,8 @@ fn query_test() {
     world.component::<TestSingleton>(c"Singleton");
     world.component::<TestData>(c"Data");
     world.component::<TestTag>(c"Tag");
+    world.component::<TestTriple>(c"Triple");
+    world.component::<TestMultiplier>(c"Multiplier");
     //add singleton
     world.singleton_set(TestSingleton { data: 1 });
     //create some entities
@@ -45,13 +54,18 @@ fn query_test() {
     e1.add(id::<TestTag>());
     e3.add(id::<TestTag>());
     e5.add(id::<TestTag>());
+    //add some more components
+    e2.add(id::<TestTriple>());
+    e3.add(id::<TestTriple>());
+    e4.set_comp(TestMultiplier { mult: 6 });
+    e5.set_comp(TestMultiplier { mult: 9 });
 
     //simple all query
     let simple_query = world.query_expr(c"[in] Data, [out] Singleton($)").build();
     let mut query_iter = simple_query.iter();
     while query_iter.advance() {
         let data = unsafe { query_iter.get::<TestData>(0) }.unwrap();
-        let mut singleton = unsafe { query_iter.get_mut::<TestSingleton>(1) }.unwrap();
+        let mut singleton = unsafe { query_iter.get::<TestSingleton>(1) }.unwrap();
         for ent in 0..query_iter.count() {
             singleton[ent].data *= data[ent].data;
         }
@@ -73,7 +87,7 @@ fn query_test() {
     let mut query_iter = filtered_query.iter();
     while query_iter.advance() {
         let data = unsafe { query_iter.get::<TestData>(0) }.unwrap();
-        let mut singleton = unsafe { query_iter.get_mut::<TestSingleton>(1) }.unwrap();
+        let mut singleton = unsafe { query_iter.get::<TestSingleton>(1) }.unwrap();
         for ent in 0..query_iter.count() {
             singleton[ent].data *= data[ent].data;
         }
@@ -94,7 +108,7 @@ fn query_test() {
     let mut query_iter = filtered_query.iter();
     while query_iter.advance() {
         let data = unsafe { query_iter.get::<TestData>(0) }.unwrap();
-        let mut singleton = unsafe { query_iter.get_mut::<TestSingleton>(1) }.unwrap();
+        let mut singleton = unsafe { query_iter.get::<TestSingleton>(1) }.unwrap();
         for ent in 0..query_iter.count() {
             singleton[ent].data *= data[ent].data;
         }
@@ -114,7 +128,7 @@ fn query_test() {
     let mut query_iter = filtered_query.iter();
     while query_iter.advance() {
         let data = unsafe { query_iter.get::<TestData>(0) }.unwrap();
-        let mut singleton = unsafe { query_iter.get_mut::<TestSingleton>(1) }.unwrap();
+        let mut singleton = unsafe { query_iter.get::<TestSingleton>(1) }.unwrap();
         let double_down = query_iter.has(2);
         for ent in 0..query_iter.count() {
             singleton[ent].data *= data[ent].data;
@@ -129,4 +143,26 @@ fn query_test() {
         2 * 3 * 5 * 7 * 11 * 17 * 17 * 17
     );
     drop(filtered_query);
+
+    //or query test
+    let or_query = world
+        .query_expr(c"[in] Data, [out] Singleton($), [in] Triple || [in] Multiplier")
+        .build();
+    let mut or_iter = or_query.iter();
+    while or_iter.advance() {
+        let data = unsafe { or_iter.get::<TestData>(0) }.unwrap();
+        let mut singleton = unsafe { or_iter.get::<TestSingleton>(1) }.unwrap();
+        if or_iter.check_id(id::<TestTriple>(), 2) {
+            for id in 0..or_iter.count() {
+                singleton[id].data *= data[id].data * 3;
+            }
+        } else if or_iter.check_id(id::<TestMultiplier>(), 2) {
+            let mult = unsafe { or_iter.get_from_table::<TestMultiplier>() }.unwrap();
+            for id in 0..or_iter.count() {
+                singleton[id].data *= data[id].data * mult[id].mult;
+            }
+        } else {
+            panic!("this should not happen");
+        }
+    }
 }

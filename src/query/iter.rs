@@ -7,7 +7,10 @@ use std::{
 use flecs_ecs_sys::*;
 
 use crate::{
-    component::{Component, id::IdFetcher},
+    component::{
+        Component,
+        id::{IdFetcher, id},
+    },
     entity::Entity,
     world::{ComponentMap, World},
 };
@@ -40,36 +43,7 @@ impl<'a, T: Component> Index<usize> for Field<'a, T> {
     }
 }
 
-/// Field of an component inside an iterator.
-/// Allows component mutation.
-pub struct FieldMut<'a, T: Component> {
-    cache_field: NonNull<T>,
-    length: usize,
-    is_on_self: bool,
-    __m: PhantomData<&'a ()>,
-}
-
-impl<'a, T: Component> Index<usize> for FieldMut<'a, T> {
-    type Output = T;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        //check bounds
-        if index > self.length {
-            panic!(
-                "index out of bounds: the length is {}, but the index is {}",
-                self.length, index
-            );
-        }
-        //find thing
-        if self.is_on_self {
-            unsafe { self.cache_field.offset(index as isize).as_ref() }
-        } else {
-            unsafe { self.cache_field.as_ref() }
-        }
-    }
-}
-
-impl<'a, T: Component> IndexMut<usize> for FieldMut<'a, T> {
+impl<'a, T: Component> IndexMut<usize> for Field<'a, T> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         //check bounds
         if index > self.length {
@@ -117,7 +91,7 @@ impl Iter {
         };
         let component_id = id.retrieve_id(&world_ref);
         let field_id = unsafe { ecs_field_id(it_ptr, index) };
-        component_id != field_id
+        component_id == field_id
     }
 
     /// Checks if the iterator has a certain term.
@@ -126,6 +100,16 @@ impl Iter {
         // Unless mutliple threads are accessing the same iterator, this is safe.
         let it_ptr = &self.iter as *const ecs_iter_t as *mut _;
         unsafe { ecs_field_is_set(it_ptr, index) }
+    }
+
+    /// Returns a source entity of a term, if it returns None it means that the component is stored
+    /// inside a field array.
+    pub fn source(&self, index: i8) -> Option<Entity> {
+        // SAFETY:
+        // Unless mutliple threads are accessing the same iterator, this is safe.
+        let it_ptr = &self.iter as *const ecs_iter_t as *mut _;
+        let src = unsafe { ecs_field_src(it_ptr, index) };
+        if src == 0 { None } else { Some(src) }
     }
 
     /// Get count of entities in the current table.
@@ -148,6 +132,9 @@ impl Iter {
     /// # Safety
     ///
     /// The Component must be correct. The term queries must not be sparse or use the Or operator.
+    ///
+    /// If the component is borrowed read-only (\[in\] access modifier) or write-only (\[out\]),
+    /// you must use the returned Field with such considerations.
     pub unsafe fn get<'a, T: Component>(&'a self, index: i8) -> Option<Field<'a, T>> {
         const {
             if T::IS_TAG {
@@ -172,32 +159,41 @@ impl Iter {
         })
     }
 
-    /// Retrieves a component field mutably from the current table in the iterator.
+    /// Retrieves a component from the table according to a component id for a certain entity.
+    ///
+    /// Used to access Or operator fields.
     ///
     /// # Safety
     ///
-    /// The Component must be correct. The term queries must not be sparse or use the Or operator.
-    pub unsafe fn get_mut<'a, T: Component>(&'a self, index: i8) -> Option<FieldMut<'a, T>> {
-        const {
-            if T::IS_TAG {
-                panic!("cannot get a field of tags");
-            }
-        }
-        // SAFETY:
-        // Unless mutliple threads are accessing the same iterator, this is safe.
-        let it_ptr = &self.iter as *const ecs_iter_t as *mut _;
-        //check if the field is set
-        if unsafe { !ecs_field_is_set(it_ptr, index) } {
+    /// The Component must be correct. The term queries must not be sparse (todo, check
+    /// information).
+    ///
+    /// If the component is borrowed read-only (\[in\] access modifier) or write-only (\[out\]),
+    /// you must use the returned Field with such considerations.
+    pub unsafe fn get_from_table<T: Component>(&self) -> Option<&mut [T]> {
+        //check id
+        let world_ref = unsafe {
+            World::from_ptr_and_map(self.iter.world, self.iter.binding_ctx as *mut ComponentMap)
+        };
+        let component_id = id::<T>().retrieve_id(&world_ref);
+        //get data
+        let ptr = unsafe {
+            ecs_table_get_id(
+                self.iter.world,
+                self.iter.table,
+                component_id,
+                self.iter.offset,
+            )
+        };
+        if ptr.is_null() {
             return None;
         }
-        //gain access to the field
-        let cache_field = unsafe { ecs_field_w_size(it_ptr, core::mem::size_of::<T>(), index) };
-        let is_on_self = unsafe { ecs_field_is_self(it_ptr, index) };
-        Some(FieldMut {
-            cache_field: NonNull::new(cache_field as *mut T).unwrap(),
-            length: self.iter.count as usize,
-            is_on_self,
-            __m: PhantomData,
-        })
+        unsafe {
+            Some(core::slice::from_raw_parts_mut(
+                ptr as *mut T,
+                self.iter.count as usize,
+            ))
+        }
     }
 }
+
