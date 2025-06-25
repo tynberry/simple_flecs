@@ -1,3 +1,4 @@
+pub mod callbacks;
 pub mod iter;
 
 use std::{
@@ -5,6 +6,7 @@ use std::{
     ptr::NonNull,
 };
 
+use callbacks::OrderByFunc;
 use flecs_ecs_sys::*;
 use iter::Iter;
 
@@ -12,6 +14,10 @@ use crate::{
     c_types::{
         ECS_QUERY_MATCH_DISABLED, ECS_QUERY_MATCH_EMPTY_TABLES, ECS_QUERY_MATCH_PREFAB,
         QueryCacheKind,
+    },
+    component::{
+        Component,
+        id::{IdFetcher, id},
     },
     entity::Entity,
     world::{ComponentMap, World},
@@ -47,7 +53,10 @@ impl Query {
     pub fn iter(&self) -> Iter {
         let mut iter = unsafe { ecs_query_iter(self.world_ptr.as_ptr(), self.query.as_ptr()) };
         iter.binding_ctx = self.component_map.as_ptr() as *mut c_void;
-        Iter { iter }
+        Iter {
+            iter,
+            query: self.query.as_ptr(),
+        }
     }
 }
 
@@ -90,6 +99,21 @@ impl<'a> QueryBuilder<'a> {
     /// Sets query to match empty tables.
     pub fn match_empty_tables(mut self) -> Self {
         self.inner.flags |= ECS_QUERY_MATCH_EMPTY_TABLES as u32;
+        self
+    }
+
+    /// Orders output by a component.
+    pub fn order_by<T: Component, F: OrderByFunc<T>>(mut self, callback: F) -> Self {
+        self.inner.order_by = id::<T>().retrieve_id(self.world);
+        self.inner.order_by_callback = unsafe {
+            // SAFETY:
+            // Components are sized, so references are thin, though it is an evil hack.
+            let extern_fun = std::mem::transmute::<
+                extern "C" fn(u64, &T, u64, &T) -> i32,
+                unsafe extern "C" fn(u64, *const c_void, u64, *const c_void) -> i32,
+            >(callback.to_extern());
+            Some(extern_fun)
+        };
         self
     }
 

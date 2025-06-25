@@ -1,4 +1,5 @@
 use std::{
+    ffi::CStr,
     marker::PhantomData,
     ops::{Index, IndexMut},
     ptr::NonNull,
@@ -70,6 +71,7 @@ impl<'a, T: Component> IndexMut<usize> for Field<'a, T> {
 ///
 /// Iter must not be passed between threads and dynamic linking boundaries.
 pub struct Iter {
+    pub(super) query: *mut ecs_query_t,
     pub(crate) iter: ecs_iter_t,
 }
 
@@ -110,6 +112,23 @@ impl Iter {
         let it_ptr = &self.iter as *const ecs_iter_t as *mut _;
         let src = unsafe { ecs_field_src(it_ptr, index) };
         if src == 0 { None } else { Some(src) }
+    }
+
+    /// Sets a variable to an id.
+    pub fn set_var(&self, variable: &CStr, id: impl IdFetcher) {
+        //retrieve variable id
+        let var_loc = unsafe { ecs_query_find_var(self.query, variable.as_ptr()) };
+        //retrieve entity id
+        let world_ref = unsafe {
+            World::from_ptr_and_map(self.iter.world, self.iter.binding_ctx as *mut ComponentMap)
+        };
+        let id = id.retrieve_id(&world_ref);
+        // SAFETY:
+        // Unless mutliple threads are accessing the same iterator, this is safe.
+        let it_ptr = &self.iter as *const ecs_iter_t as *mut _;
+        unsafe {
+            ecs_iter_set_var(it_ptr, var_loc, id);
+        }
     }
 
     /// Get count of entities in the current table.
@@ -196,4 +215,3 @@ impl Iter {
         }
     }
 }
-
