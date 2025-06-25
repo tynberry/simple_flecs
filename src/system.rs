@@ -6,10 +6,7 @@ use std::{
 use flecs_ecs_sys::*;
 
 use crate::{
-    c_types::{
-        ECS_QUERY_MATCH_DISABLED, ECS_QUERY_MATCH_EMPTY_TABLES, ECS_QUERY_MATCH_PREFAB,
-        QueryCacheKind,
-    },
+    c_types::{ECS_QUERY_MATCH_DISABLED, ECS_QUERY_MATCH_EMPTY_TABLES, ECS_QUERY_MATCH_PREFAB},
     component::{
         Component,
         id::{IdFetcher, id},
@@ -45,12 +42,6 @@ impl<'a> SystemBuilder<'a> {
     pub fn expression(mut self, expr: &CStr) -> Self {
         self.expr = Some(expr.to_owned());
         self.inner.query.expr = self.expr.as_ref().unwrap().as_ptr();
-        self
-    }
-
-    /// Sets query's cache kind.
-    pub fn set_cache(mut self, kind: QueryCacheKind) -> Self {
-        self.inner.query.cache_kind = kind as u32;
         self
     }
 
