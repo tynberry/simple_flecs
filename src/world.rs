@@ -16,7 +16,8 @@ use crate::{
     system::SystemBuilder,
 };
 
-pub(crate) type ComponentMap = AHashMap<TypeId, Entity>;
+/// Component map, mapping local typeids to registered entity ids.
+pub type ComponentMap = AHashMap<TypeId, Entity>;
 
 /// ECS world.
 #[derive(Debug)]
