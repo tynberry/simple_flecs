@@ -3,7 +3,7 @@ use flecs_ecs_sys::*;
 use std::{
     any::TypeId,
     ffi::{CStr, c_void},
-    ptr::NonNull,
+    ptr::{NonNull, null_mut},
 };
 
 use crate::{
@@ -12,6 +12,7 @@ use crate::{
         id::{Id, IdFetcher, id},
     },
     entity::{Entity, EntityView},
+    flecs::rest::Rest,
     query::QueryBuilder,
     system::SystemBuilder,
 };
@@ -547,5 +548,19 @@ impl World {
         unsafe {
             ecs_progress(self.ptr(), dt);
         }
+    }
+
+    /// Imports and enabled REST api, allows you to connect using flecs explorer.
+    pub fn explorer(&mut self) {
+        //import flecs stats
+        unsafe {
+            ecs_import(self.ptr(), Some(FlecsStatsImport), c"FlecsStat".as_ptr());
+        }
+        //set rest server singleton
+        self.singleton_set::<Rest>(Rest {
+            port: 27750,
+            ipaddr: null_mut(),
+            impl_: null_mut(),
+        })
     }
 }
