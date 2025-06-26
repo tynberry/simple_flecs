@@ -9,5 +9,6 @@ flecs_ecs_sys = { git = "https://github.com/Indra-db/Flecs-Rust", rev = "4f9a222
   "flecs_pipeline",
   "flecs_system",
   "flecs_rest",
+  "flecs_stats",
   "flecs_log",
 ] }
