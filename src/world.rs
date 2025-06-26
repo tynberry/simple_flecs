@@ -530,24 +530,28 @@ impl World {
         }
     }
 
+    /// Tells the application that it should quit.
+    #[inline]
+    pub fn should_quit(&self) {
+        unsafe {
+            ecs_should_quit(self.ptr());
+        }
+    }
+
     /// Progresses the world.
     ///
     /// Calls every system.
     #[inline]
-    pub fn progress(&self) {
-        unsafe {
-            ecs_progress(self.ptr(), 0.0);
-        }
+    pub fn progress(&self) -> bool {
+        unsafe { ecs_progress(self.ptr(), 0.0) }
     }
 
     /// Progresses the world with a specified delta time.
     ///
     /// Calls every system.
     #[inline]
-    pub fn progress_deltatime(&self, dt: f32) {
-        unsafe {
-            ecs_progress(self.ptr(), dt);
-        }
+    pub fn progress_deltatime(&self, dt: f32) -> bool {
+        unsafe { ecs_progress(self.ptr(), dt) }
     }
 
     /// Imports and enabled REST api, allows you to connect using flecs explorer.
