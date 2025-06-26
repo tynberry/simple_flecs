@@ -26,9 +26,6 @@ impl Component for TestMultiplier {}
 
 #[test]
 fn query_test() {
-    unsafe {
-        flecs_ecs_sys::ecs_log_set_level(3);
-    }
     let mut world = World::new();
     //register components
     world.component::<TestSingleton>(c"Singleton");
