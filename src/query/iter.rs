@@ -183,6 +183,12 @@ impl<const SYSTEM: bool> Iter<SYSTEM> {
         self.iter.count as usize
     }
 
+    /// Gets current delta time since last frame.
+    #[inline]
+    pub fn delta_time(&self) -> f32 {
+        self.iter.delta_time
+    }
+
     /// Get entity from the index.
     pub fn entity(&self, index: usize) -> Option<Entity> {
         //check bounds
