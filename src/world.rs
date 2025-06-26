@@ -558,7 +558,8 @@ impl World {
     pub fn explorer(&mut self) {
         //import flecs stats
         unsafe {
-            ecs_import(self.ptr(), Some(FlecsStatsImport), c"FlecsStats".as_ptr());
+            let e = ecs_import_c(self.ptr(), Some(FlecsStatsImport), c"FlecsStats".as_ptr());
+            println!("Stats entity, probably at: {e}");
         }
         //set rest server singleton
         self.singleton_set::<Rest>(Rest {
